@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  // id integer olacak aynı şekilde sistem tarafından automatik doldurulacak
+  id Int @id @default(autoincrement())
+
+  // createAt ve updateAt saat ve tarih olacak map ise veritanında o şekilde yazılması içindir
+  createAt DateTime @default(now()) @map("create_at")
+  updateAt DateTime @default(now()) @map("update_at")
+
+  // email String ve benzesiz olacaktır
+  email String @unique
+
+  // name de string olacaktır
+  name String
+
+  password String
+}
