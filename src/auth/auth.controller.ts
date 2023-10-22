@@ -6,16 +6,37 @@
 
 //? Controller fonksyonunu en üstte çağır ve AuthController classı yaz onun içine de yapıcı yaz yani constructor
 
-import { Controller, HttpCode, Post } from '@nestjs/common'
-import { AuthService } from './auth.service'
+//* POST,PUT, PATCH işlemlerinde BODY göndermemiz gerekecek onu da DTO yazarak kolayca  halledebiliriz
 
-@Controller()
+//* Dtoyu kullanabilmek için UsePipes kullanmamız gerekecek
+
+//* bunları yaparken : class-validator, class-transformer kütüphanlerini dahil etmeyi unutmayınız
+
+//? class-validator - möderatör, yani değişkenlerin hangi tipte olacağını belirler
+
+//? class-transformer - dto içindir
+
+import {
+	Body,
+	Controller,
+	HttpCode,
+	Post,
+	UsePipes,
+	ValidationPipe
+} from '@nestjs/common'
+import { AuthService } from './auth.service'
+import { AuthDto } from './dto/auth.dto'
+
+@Controller('auth')
 export class AuthController {
 	constructor(private readonly authService: AuthService) {}
 
+	/* Register, Login , GetToken contollerları olacak */
+
+	@UsePipes(new ValidationPipe())
 	@HttpCode(200)
-	@Post('auth/register')
-	async register() {
-		return this.authService.register()
+	@Post('register')
+	async register(@Body() dto: AuthDto) {
+		return this.authService.register(dto)
 	}
 }
