@@ -12,10 +12,14 @@
 
 import { faker } from '@faker-js/faker'
 import { Injectable } from '@nestjs/common'
-import { BadRequestException } from '@nestjs/common/exceptions'
+import {
+	BadRequestException,
+	UnauthorizedException
+} from '@nestjs/common/exceptions'
+import { NotFoundException } from '@nestjs/common/exceptions/not-found.exception'
 import { JwtService } from '@nestjs/jwt'
 import { User } from '@prisma/client'
-import { hash } from 'argon2'
+import { hash, verify } from 'argon2'
 import { PrismaService } from 'prisma.service'
 import { AuthDto } from './dto/auth.dto'
 
@@ -38,9 +42,9 @@ export class AuthService {
 		private configService: ConfigService
 	) {}
 
-	//======================REGİSTER===================//
+	//*======================REGİSTER===================//
 	async register(dto: AuthDto) {
-		//* user olup olmadığını kontrol et
+		// user olup olmadığını kontrol et
 
 		const isHaveUser = await this.prisma.user.findUnique({
 			where: {
@@ -75,7 +79,43 @@ export class AuthService {
 		}
 	}
 
+	//*=========================LOGIN========================//
+	async login(dto: AuthDto) {
+		const user = await this.validateUser(dto)
+		const tokens = await this.issueTokens(user.id)
+		return {
+			user: this.returnUserFields(user),
+			...tokens
+		}
+	}
+
+	//*======================GET NEW TOKEN===================//
+
+	async getNewTokens(refreshToken: string) {
+		const result = await this.jwt.verifyAsync(refreshToken, {
+			secret: this.configService.get('JWT_SECRET')
+		})
+
+		if (!result) throw new UnauthorizedException('Invalid refresh token!')
+
+		const user = await this.prisma.user.findUnique({
+			where: {
+				id: result.id
+			}
+		})
+
+		const newTokens = await this.issueTokens(user.id)
+
+		return {
+			user: this.returnUserFields(user),
+			...newTokens
+		}
+	}
+
+	//?================HELPER FONKSYONLAR==================
+
 	//!bunu yapmadan önce jwt configi oluşturmalısın
+
 	// token alma fonksyonu
 
 	private async issueTokens(userId: number) {
@@ -101,6 +141,22 @@ export class AuthService {
 		}
 	}
 
+	private async validateUser(dto: AuthDto) {
+		const isUser = await this.prisma.user.findUnique({
+			where: {
+				email: dto.email
+			}
+		})
+
+		if (!isUser) throw new NotFoundException('User not found!')
+
+		const isValid = await verify(isUser.password, dto.password)
+
+		if (!isValid) throw new UnauthorizedException('Invalid Credetionals!')
+
+		return isUser
+	}
+
 	// userı login olursa register olursa bu şekilde döndürmek için yazılan fonksyon
 
 	private returnUserFields(user: User) {
@@ -109,11 +165,4 @@ export class AuthService {
 			email: user.email
 		}
 	}
-
-	//=========================LOGIN========================//
-	async login() {}
-
-	//======================GET NEW TOKEN===================//
-
-	async getNewTokens() {}
 }
